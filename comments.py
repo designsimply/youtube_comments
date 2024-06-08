@@ -4,6 +4,9 @@
 from dataclasses import dataclass
 from typing import Any, Optional
 from concurrent.futures import ThreadPoolExecutor
+import csv
+from argparse import ArgumentParser
+import logging
 
 # external
 from google.oauth2 import service_account
@@ -19,10 +22,15 @@ Filepath = str
 
 
 class config:
-    """Configuration"""
+    """Configuration. Should probably eventually be a module."""
 
     CREDENTIALS_FILE: Filepath = "credentials.json"
     MAX_WORKERS: int = 5
+
+    logging.basicConfig(level=logging.INFO)
+
+
+logger = logging.getLogger(__name__)
 
 
 # %%
@@ -35,7 +43,7 @@ class Comment:
     channelId: str
     videoId: str
     textDisplay: str
-    # textOriginal: str
+    # textOriginal: str # don't need both text fields
     authorDisplayName: str
     authorProfileImageUrl: str
     authorChannelUrl: str
@@ -96,6 +104,7 @@ def parse_comments(response: JSON) -> list[Comment]:
 def comment_threads(youtube: ResourceYoutubeV3, videoID: str) -> list[Comment]:
     comments = []
     pageToken = None
+    logger.info(f"Fetching comments for video {videoID}")
     while True:
         request = youtube.commentThreads().list(
             part="id,replies,snippet",
@@ -108,7 +117,7 @@ def comment_threads(youtube: ResourceYoutubeV3, videoID: str) -> list[Comment]:
             pageToken = response["nextPageToken"]
         else:
             break
-
+    logger.info(f"Found {len(comments)} comments.")
     return comments
 
 
@@ -160,9 +169,11 @@ def get_sentiment(client: ResourceLanguage, text: str, lang: str = "en") -> Sent
 
 
 def get_sentiments(
-    client: ResourceLanguage, comments: list[Comment]
+    client: ResourceLanguage,
+    comments: list[Comment],
 ) -> list[Sentiment]:
     """Get Sentiments in Parallel"""
+    logger.info("Fetching Sentiments")
     with ThreadPoolExecutor(max_workers=5) as executor:
         return list(
             executor.map(
@@ -174,13 +185,84 @@ def get_sentiments(
 
 
 # %%
-youtube = create_youtube_client()
-comments = comment_threads(youtube, "XTjtPc0uiG8")
+
+
+def to_csv(
+    filepath: Filepath,
+    comments: list[Comment],
+    sentiments: Optional[list[Sentiment]] = None,
+) -> None:
+    """Write Comments to CSV File
+
+    Args:
+        filepath (Filepath): Filepath to write to
+        comments (list[Comment]): List of comments
+        sentiments (Optional[list[Sentiment]], optional): List of sentiments. Defaults to None.
+    """
+    logger.info(f"Writing comments to {filepath}")
+    delimiter = "\t"
+
+    rows = []
+    for i, comment in enumerate(comments):
+        row = comment.to_dict()
+        row["textDisplay"] = comment.textDisplay.replace(delimiter, " ")
+        if sentiments:
+            row["score"] = sentiments[i].score
+            row["magnitude"] = sentiments[i].magnitude
+        rows.append(row)
+
+    if len(rows) == 0:
+        raise ValueError("No comments to write to file.")
+    first_row = rows[0]
+
+    with open(filepath, "w") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=first_row.keys(),
+            delimiter=delimiter,
+        )
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 # %%
+def run(
+    videoID: str,
+    include_sentiment: bool,
+    output_file: Optional[Filepath] = None,
+) -> None:
+    youtube = create_youtube_client()
+    comments = comment_threads(youtube, videoID)
+    if include_sentiment:
+        lang = create_language_client()
+        sentiments = get_sentiments(lang, comments)
+    else:
+        sentiments = None
 
-lang = create_language_client()
-sentiments = get_sentiments(lang, comments[:5])
+    output = output_file or f"exports/{videoID}.tsv"
+    to_csv(output, comments, sentiments)
+
+
+def main():
+    parse = ArgumentParser()
+    parse.add_argument("--videoID", type=str, required=True)
+    parse.add_argument("--include-sentiment", action="store_true")
+    parse.add_argument("--output", type=str, required=False)
+
+    pargs = parse.parse_args()
+    output_file = f"exports/{pargs.videoID}.tsv" if not pargs.output else pargs.output
+    video_id = pargs.videoID
+    include_sentiment = pargs.include_sentiment
+
+    run(video_id, include_sentiment, output_file)
+
+
+# %%
+if __name__ == "__main__":
+    main()
+    # run(
+    #     videoID="__ABPkb0aF8",
+    #     include_sentiment=True,
+    # )
 
 # %%
