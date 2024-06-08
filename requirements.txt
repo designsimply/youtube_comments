@@ -1,2 +1,9 @@
+# Used for accessing google youtube
 google-api-python-client
+
+# Used for accessing google NLP
 google-cloud-language
+
+# For formatting
+black
+pylint

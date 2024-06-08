@@ -4,6 +4,10 @@ This script extracts YouTube comments.
 
 # Getting Started
 
+## Python Environment
+
+`make install`
+
 ## Google Credentials
 
 You'll need a [Google project](https://developers.google.com/workspace/guides/create-project).
@@ -13,4 +17,11 @@ Within the Google project go to menu, select "API & Services" then "Credentials"
 Within the new account, you'll have several tabs and select "Keys". When that tab loads click "Add Key" and "Create new key". This should create a file which will download. This file is your credentials.json file. 
 
 Move that file to this folder and rename to credentials.json. 
+
+# Running
+
+``` bash
+source .venv/bin/activate
+python comments.py --video-id TAhbFRMURtg
+```
 
