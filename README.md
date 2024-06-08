@@ -18,10 +18,9 @@ Within the new account, you'll have several tabs and select "Keys". When that ta
 
 Move that file to this folder and rename to credentials.json. 
 
-# Running
+# Start
 
 ``` bash
 source .venv/bin/activate
 python comments.py --video-id TAhbFRMURtg
 ```
-
