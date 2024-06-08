@@ -119,12 +119,9 @@ def comment_threads(youtube: ResourceYoutubeV3, videoID: str, limit: int = -1) -
             pageToken = response["nextPageToken"]
         else:
             break
-    logger.info(f"Found {len(comments)} comments.")
-
-    if limit > 0:
-        return comments[:limit]
-    else:
-        return comments
+    comments_limited = comments[:limit] if limit > 0 else comments
+    logger.info(f"Found {len(comments_limited)} comments. Max: {limit}")
+    return comments_limited
 
 
 def create_youtube_client() -> ResourceYoutubeV3:
