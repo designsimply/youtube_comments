@@ -24,3 +24,13 @@ Move that file to this folder and rename to credentials.json.
 source .venv/bin/activate
 python comments.py --video-id TAhbFRMURtg
 ```
+
+# Sentiment Analysis
+
+If you want to run sentiment analysis on comments too (`python comments.py --video-id TAhbFRMURtg
+ --include-sentiment`) then you'll need to enable this for the project you set up eariler.
+
+This will take you to enabling NLP if you put in your projectId.
+`https://console.cloud.google.com/apis/enableflow?apiid=language.googleapis.com&authuser=1&project={projectId}`
+
+Learn more about setting up [google NLP](https://cloud.google.com/python/docs/reference/language/latest)
