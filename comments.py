@@ -101,7 +101,7 @@ def parse_comments(response: JSON) -> list[Comment]:
     return comments
 
 
-def comment_threads(youtube: ResourceYoutubeV3, videoID: str) -> list[Comment]:
+def comment_threads(youtube: ResourceYoutubeV3, videoID: str, limit: int = -1) -> list[Comment]:
     comments = []
     pageToken = None
     logger.info(f"Fetching comments for video {videoID}")
@@ -113,12 +113,18 @@ def comment_threads(youtube: ResourceYoutubeV3, videoID: str) -> list[Comment]:
         )
         response = request.execute()
         comments.extend(parse_comments(response))
+        if limit > 0 and len(comments) >= limit:
+            break
         if "nextPageToken" in response:
             pageToken = response["nextPageToken"]
         else:
             break
     logger.info(f"Found {len(comments)} comments.")
-    return comments
+
+    if limit > 0:
+        return comments[:limit]
+    else:
+        return comments
 
 
 def create_youtube_client() -> ResourceYoutubeV3:
@@ -230,9 +236,10 @@ def run(
     videoID: str,
     include_sentiment: bool,
     output_file: Optional[Filepath] = None,
+    limit: int = 100,
 ) -> None:
     youtube = create_youtube_client()
-    comments = comment_threads(youtube, videoID)
+    comments = comment_threads(youtube, videoID, limit=limit)
     if include_sentiment:
         lang = create_language_client()
         sentiments = get_sentiments(lang, comments)
@@ -247,14 +254,16 @@ def main():
     parse = ArgumentParser()
     parse.add_argument("--videoID", type=str, required=True)
     parse.add_argument("--include-sentiment", action="store_true")
+    parse.add_argument("--limit", type=int, default=100, required=False)
     parse.add_argument("--output", type=str, required=False)
 
     pargs = parse.parse_args()
     output_file = f"exports/{pargs.videoID}.tsv" if not pargs.output else pargs.output
     video_id = pargs.videoID
     include_sentiment = pargs.include_sentiment
+    limit = pargs.limit
 
-    run(video_id, include_sentiment, output_file)
+    run(video_id, include_sentiment, output_file, limit)
 
 
 # %%
